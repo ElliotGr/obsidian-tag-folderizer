@@ -1,4 +1,4 @@
-import { MetadataCache, parseFrontMatterTags, Plugin } from "obsidian";
+import { getAllTags, Plugin} from "obsidian";
 
 export default class tagFolderizer extends Plugin {
   async onload() {
@@ -6,19 +6,15 @@ export default class tagFolderizer extends Plugin {
       console.log('File updated')
 
 	  let firstTag
-	  const frontmatterTags = parseFrontMatterTags(fileCache.frontmatter)
-	  if (frontmatterTags) {
-		firstTag = frontmatterTags[0]
-	  }
-	  else if (fileCache.tags) {
-		firstTag = fileCache.tags[0].tag
+	  const allTags = getAllTags(fileCache)
+	  if (allTags) {
+		firstTag = allTags[0]
 	  }
 	  else {
-		console.log('No Tags Found')
+		console.log('No tags found')
 		return
 	  }
-
-	  console.log(firstTag)
+	  const tagParts = firstTag.substring(1).split('/')
     }));
   }
 }
