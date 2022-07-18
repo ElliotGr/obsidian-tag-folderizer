@@ -1,23 +1,50 @@
-import { CachedMetadata, getAllTags, Plugin } from "obsidian";
+import { CachedMetadata, getAllTags, normalizePath, Plugin, TFile, TFolder, Vault } from "obsidian";
 
 export default class tagFolderizer extends Plugin {
 	async onload() {
-		this.registerEvent(this.app.metadataCache.on('changed', (file, data, cache) => handleChanges(cache)));
+		this.registerEvent(this.app.metadataCache.on('changed', (file, data, cache) => handleChanges(file, cache)));
 	}
 }
 
-function handleChanges(fileCache: CachedMetadata) {
+async function handleChanges(file: TFile, fileCache: CachedMetadata) {
 	const firstTag = getFirstTag(fileCache);
 	const tagParts = splitTag(firstTag);
-	console.log(tagParts)
+	if (tagParts == null) {
+		console.log('No tags found');
+		return
+	}
+
+	const baseTag = tagParts[0];
+	const baseFolder = getFolderIfExists(baseTag)
+	if (baseFolder) {
+		app.fileManager.renameFile(file, normalizePath(`${baseFolder.path}/${file.name}`))
+	} else {
+		await app.vault.createFolder(baseTag)
+		app.fileManager.renameFile(file, normalizePath(`${baseTag}/${file.name}`))
+	}
+}
+
+function getFolderIfExists(folderName: string): TFolder | null {
+	let folderExists = false
+	let baseFolder = null
+	Vault.recurseChildren(app.vault.getRoot(), (abstractFile) => {
+		if (abstractFile instanceof TFolder && abstractFile.name === folderName) {
+			if (folderExists) {
+				baseFolder = null
+				console.log('Duplicate folder')
+				return null
+			} else {
+				baseFolder = abstractFile
+				folderExists = true
+			}
+		}
+	})
+	return baseFolder
 }
 
 function getFirstTag(fileCache: CachedMetadata): string | null {
-	console.log('File updated');
-
 	const allTags = getAllTags(fileCache);
 	if (allTags == null || allTags.length === 0) {
-		console.log('No tags found');
 		return null;
 	} else {
 		return allTags[0]
