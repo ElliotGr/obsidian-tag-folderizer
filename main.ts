@@ -16,12 +16,27 @@ async function handleChanges(file: TFile, fileCache: CachedMetadata) {
 
 	const baseTag = tagParts[0];
 	const baseFolder = getFolderIfExists(baseTag)
+	const baseFile = app.metadataCache.getFirstLinkpathDest(baseTag, '')
 	if (baseFolder) {
-		app.fileManager.renameFile(file, normalizePath(`${baseFolder.path}/${file.name}`))
-	} else {
+		moveFile(file, baseFolder);
+	} else if (!baseFile) {
 		await app.vault.createFolder(baseTag)
-		app.fileManager.renameFile(file, normalizePath(`${baseTag}/${file.name}`))
+		moveFile(file, app.vault.getAbstractFileByPath(baseTag))
+	} else {
+		await fileToFolder(baseFile)
+		moveFile(file, baseFile.parent)
 	}
+}
+
+async function moveFile(file: TFile, destFolder: TFolder): Promise<void> {
+	await app.fileManager.renameFile(file, normalizePath(`${destFolder.path}/${file.name}`));
+}
+
+async function fileToFolder(file: TFile): Promise<void> {
+	const folderPath = normalizePath(`${file.parent.path}/${file.basename}`)
+	const newFilePath = normalizePath(`${folderPath}/${file.name}`)
+	await app.vault.createFolder(folderPath)
+	await app.fileManager.renameFile(file, newFilePath)
 }
 
 function getFolderIfExists(folderName: string): TFolder | null {
